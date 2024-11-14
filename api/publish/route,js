@@ -1,7 +1,95 @@
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
+export const dynamic = 'force-dynamic'; // Disable static optimization
+
+export async function POST(request) {
+  // Add CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  };
+
+  // Handle preflight request
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { headers });
+  }
+
+  try {
+    // Parse the incoming request
+    const { username, pages } = await request.json();
+
+    // Log the received data
+    console.log('Received data for username:', username);
+    console.log('Number of pages:', pages.length);
+
+    // Here you would typically save the data
+    // For now, we'll just log it
+    pages.forEach((page, index) => {
+      console.log(`Page ${index + 1}: ${page.name}`);
+      // The image is available as page.image (base64 string)
+    });
+
+    // Send success response
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `Successfully published ${pages.length} pages for ${username}`,
+        url: `https://picks-club.vercel.app/${username}`
+      }), 
+      {
+        status: 200,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+  } catch (error) {
+    // Log the error
+    console.error('Error processing request:', error);
+
+    // Send error response
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Failed to process request',
+        details: error.message
+      }), 
+      {
+        status: 500,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+  }
+}
+
+// Handle OPTIONS requests (for CORS preflight)
+export async function OPTIONS(request) {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    }
+  });
+}
+
+// Add GET method to test if API is working
+export async function GET(request) {
+  return new Response(
+    JSON.stringify({ 
+      status: 'API is working',
+      message: 'Send a POST request with username and pages data to publish'
+    }),
+    {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      }
+    }
   );
 }
