@@ -1,36 +1,86 @@
 // app/api/publish/route.js
 export const dynamic = 'force-dynamic';
 
-// Define headers once to reuse
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  'Access-Control-Allow-Origin': 'https://www.figma.com',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Accept',
+  'Access-Control-Max-Age': '86400'
 };
+
+// Validate the request body
+function validateRequest(body) {
+  if (!body.username || typeof body.username !== 'string') {
+    return 'Username is required';
+  }
+  
+  if (!body.pages || !Array.isArray(body.pages)) {
+    return 'Pages must be an array';
+  }
+  
+  if (body.pages.length === 0) {
+    return 'At least one page is required';
+  }
+  
+  for (const page of body.pages) {
+    if (!page.name || !page.image) {
+      return 'Each page must have a name and image';
+    }
+  }
+  
+  return null;
+}
+
+// Handle OPTIONS requests
+export async function OPTIONS() {
+  return new Response(null, {
+    headers: corsHeaders
+  });
+}
 
 // Handle POST requests
 export async function POST(request) {
   try {
-    // Parse the incoming request
-    const { username, pages } = await request.json();
+    const body = await request.json();
     
-    // Log the received data
-    console.log('Received data for username:', username);
-    console.log('Number of pages:', pages.length);
+    // Validate request body
+    const validationError = validateRequest(body);
+    if (validationError) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: validationError 
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    }
+
+    const { username, pages } = body;
     
-    // Process pages
+    // Log the request
+    console.log(`Processing ${pages.length} pages for user ${username}`);
     pages.forEach((page, index) => {
       console.log(`Page ${index + 1}: ${page.name}`);
-      // The image is available as page.image (base64 string)
     });
 
-    // Send success response
+    // Here you would typically:
+    // 1. Save the images to your storage (e.g., S3, Cloudinary)
+    // 2. Save the metadata to your database
+    // 3. Generate the user's gallery page
+    
+    // For now, we'll just return success
     return new Response(
       JSON.stringify({
         success: true,
         message: `Successfully published ${pages.length} pages for ${username}`,
         url: `https://picks-club.vercel.app/${username}`
-      }), 
+      }),
       {
         status: 200,
         headers: {
@@ -39,6 +89,7 @@ export async function POST(request) {
         }
       }
     );
+    
   } catch (error) {
     console.error('Error processing request:', error);
     
@@ -47,7 +98,7 @@ export async function POST(request) {
         success: false,
         error: 'Failed to process request',
         details: error.message
-      }), 
+      }),
       {
         status: 500,
         headers: {
@@ -57,27 +108,4 @@ export async function POST(request) {
       }
     );
   }
-}
-
-// Handle OPTIONS requests for CORS preflight
-export async function OPTIONS() {
-  return new Response(null, {
-    headers: corsHeaders
-  });
-}
-
-// Handle GET requests
-export async function GET() {
-  return new Response(
-    JSON.stringify({ 
-      status: 'API is working',
-      message: 'Send a POST request with username and pages data to publish'
-    }),
-    {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    }
-  );
 }
