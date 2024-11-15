@@ -1,127 +1,136 @@
 // app/api/publish/route.ts
 import { NextResponse } from 'next/server';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Accept, Origin',
-  'Access-Control-Max-Age': '86400',
-};
-
 // Store data in memory
 let picks = new Map();
 
-// Handle preflight requests
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
-}
+// Define CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': '*',
+  'Access-Control-Allow-Credentials': 'true',
+  'Access-Control-Max-Age': '86400'
+};
 
-// Validate the request body
-function validateRequest(body: any) {
-  if (!body.username || typeof body.username !== 'string') {
-    return 'Username is required';
-  }
-  
-  if (!body.pages || !Array.isArray(body.pages)) {
-    return 'Pages must be an array';
-  }
-  
-  if (body.pages.length === 0) {
-    return 'At least one page is required';
-  }
-  
-  for (const page of body.pages) {
-    if (!page.name || !page.image) {
-      return 'Each page must have a name and image';
-    }
-  }
-  
-  return null;
+// Handle preflight requests
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders
+  });
 }
 
 // Handle POST requests
 export async function POST(request: Request) {
-  try {
-    // Parse request body
-    const body = await request.json();
-    
-    // Validate request
-    const validationError = validateRequest(body);
-    if (validationError) {
-      return NextResponse.json(
-        { success: false, error: validationError },
-        { status: 400, headers: corsHeaders }
-      );
-    }
+  // Add CORS headers to all responses
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
+  }
 
+  try {
+    const body = await request.json();
     const { username, pages } = body;
     
     // Store the picks in memory
     picks.set(username, pages);
     
-    // Log for debugging
-    console.log(`Stored ${pages.length} picks for user ${username}`);
-    
-    return NextResponse.json(
-      {
+    return new Response(
+      JSON.stringify({
         success: true,
         message: `Successfully published ${pages.length} picks for ${username}`,
         url: `/${username}`
-      },
-      { headers: corsHeaders }
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
     );
     
   } catch (error) {
-    console.error('Error processing request:', error);
-    
-    return NextResponse.json(
-      {
+    return new Response(
+      JSON.stringify({
         success: false,
         error: 'Failed to process request',
         details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500, headers: corsHeaders }
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
     );
   }
 }
 
-// Handle GET requests to fetch picks
+// Handle GET requests
 export async function GET(request: Request) {
+  // Add CORS headers to all responses
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
+  }
+
   try {
     const url = new URL(request.url);
     const username = url.pathname.split('/').pop();
 
-    if (!username) {
-      return NextResponse.json(
-        { success: false, error: 'Username is required' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
     const userPicks = picks.get(username);
     
     if (!userPicks) {
-      return NextResponse.json(
-        { success: false, error: 'No picks found for this user' },
-        { status: 404, headers: corsHeaders }
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'No picks found for this user'
+        }),
+        {
+          status: 404,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        }
       );
     }
 
-    return NextResponse.json(
-      { success: true, picks: userPicks },
-      { headers: corsHeaders }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        picks: userPicks
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
     );
     
   } catch (error) {
-    console.error('Error fetching picks:', error);
-    
-    return NextResponse.json(
-      {
+    return new Response(
+      JSON.stringify({
         success: false,
         error: 'Failed to fetch picks',
         details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500, headers: corsHeaders }
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
     );
   }
 }
